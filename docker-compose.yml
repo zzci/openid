@@ -1,0 +1,38 @@
+version: "3"
+
+services:
+  openid:
+    container_name: ${POD_NAME}
+    hostname:  ${POD_HOSTNAME}
+    image: ${POD_IMAGE}
+    command: serve -c /etc/config/hydra/hydra.yml all --sqa-opt-out
+    volumes:
+      - ./db:/var/lib/sqlite/
+      - ./config:/etc/config/hydra/
+    environment:
+      - DSN=sqlite:///var/lib/sqlite/db.sqlite?_fk=true
+    restart: unless-stopped
+    depends_on:
+      - openid-migrate
+    user: root
+    networks:
+      - openid
+  openid-migrate:
+    container_name: ${POD_NAME}-init
+    hostname:  ${POD_HOSTNAME}
+    image: ${POD_IMAGE}
+    user: root
+    environment:
+      - DSN=sqlite:///var/lib/sqlite/db.sqlite?_fk=true
+    command: migrate -c /etc/config/hydra/hydra.yml sql -e --yes
+    volumes:
+      - ./db:/var/lib/sqlite/
+      - ./config:/etc/config/hydra/
+    restart: on-failure
+    networks:
+      - openid
+
+networks:
+  openid:
+    external: true
+    name: ${TRAEFIK_NETWORK}
